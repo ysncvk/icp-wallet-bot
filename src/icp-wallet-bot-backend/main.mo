@@ -6,7 +6,10 @@ import Option "mo:base/Option";
 
 actor ICPWallet {
   type TelegramId = Text;
-  type User = { principalId: Principal };
+  type User = { 
+    principalId: Principal;
+     accountId: Text
+  };
 
   private stable var users : Trie.Trie<TelegramId, User> = Trie.empty();
 
@@ -16,14 +19,14 @@ actor ICPWallet {
     return exists;
   };
 
-  public shared func createUser (telegramId:TelegramId, principalId: Principal): async Principal{
+  public shared func createUser (telegramId:TelegramId, user: User): async Bool{
     users := Trie.replace(
       users,
       key(telegramId),
       Text.equal,
-      ?{principalId},
+      ?user,
     ).0;
-    return principalId
+     true;
   };
 
   public shared query func getUser(telegramId: TelegramId) : async ?User {

@@ -3,40 +3,52 @@ import { AccountIdentifier } from "@dfinity/ledger-icp";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function CreateWallet() {
+type Props = {
+  userName: String;
+  telegramId: Number;
+  userStatus: any;
+};
+
+export default function CreateWallet({
+  userName,
+  telegramId,
+  userStatus,
+}: Props) {
   const [principalId, setPrincipalId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [balance, setBalance] = useState(0);
   const [privateKey, setPrivateKey] = useState("");
   const [publicKey, setPublicKey] = useState("");
 
-  const createWallet = async () => {
-    const identity = Ed25519KeyIdentity.generate();
-    const publicKey = identity.getPublicKey().toDer();
-    const privateKey = identity.getKeyPair().secretKey;
+  useEffect(() => {
+    const createWallet = async () => {
+      const identity = Ed25519KeyIdentity.generate();
+      const publicKey = identity.getPublicKey().toDer();
+      const privateKey = identity.getKeyPair().secretKey;
 
-    // Public key'i Base64 formatına çevir
-    const publicKeyBase64 = btoa(
-      String.fromCharCode(...new Uint8Array(publicKey))
-    );
+      // Public key'i Base64 formatına çevir
+      const publicKeyBase64 = btoa(
+        String.fromCharCode(...new Uint8Array(publicKey))
+      );
 
-    // Private key'i Base64 formatına çevir
-    const privateKeyBase64 = btoa(
-      String.fromCharCode(...new Uint8Array(privateKey))
-    );
+      // Private key'i Base64 formatına çevir
+      const privateKeyBase64 = btoa(
+        String.fromCharCode(...new Uint8Array(privateKey))
+      );
 
-    console.log("Public Key:", publicKeyBase64);
-    console.log("Private Key:", privateKeyBase64);
+      console.log("Public Key:", publicKeyBase64);
+      console.log("Private Key:", privateKeyBase64);
 
-    const principal = identity.getPrincipal(); // Principal'i alıyoruz
-    console.log("Principal", principal.toText());
+      const principal = identity.getPrincipal(); // Principal'i alıyoruz
+      console.log("Principal", principal.toText());
 
-    const accountIdentifier = AccountIdentifier.fromPrincipal({ principal }); // Hesap kimliğini oluşturuyoruz
-    const accountId = accountIdentifier.toHex(); // Hesap kimliğini hexadecimal formata dönü
-    console.log("accountId", accountId);
-  };
+      const accountIdentifier = AccountIdentifier.fromPrincipal({ principal }); // Hesap kimliğini oluşturuyoruz
+      const accountId = accountIdentifier.toHex(); // Hesap kimliğini hexadecimal formata dönü
+      console.log("accountId", accountId);
+    };
+  }, []);
 
   return (
     <Stack gap={3}>

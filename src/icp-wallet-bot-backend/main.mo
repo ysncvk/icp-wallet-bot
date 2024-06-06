@@ -37,6 +37,38 @@ actor ICPWallet {
     return result;
   };
 
+   public query func getUsers () : async [User]  {
+    return Trie.toArray<TelegramId, User, User>(
+    users,
+    func (k, v) : (User) {
+      { principalId = v.principalId; accountId = v.accountId; publicKey= v.publicKey; privateKey= v.privateKey}
+    }
+  );
+  };
+
+  public   func showUsers(): async Text {
+    let result = await getUsers();
+    var output: Text = "\n__ALL-USERS_____";
+    for (user in result.vals()){
+      output#= "\n" # Principal.toText(user.principalId) # "\n"
+    };
+    output;
+  };
+
+  public func delete(telegramId : TelegramId) : async Bool {
+    let result = Trie.find(users, key(telegramId), Nat32.equal);
+    let exists = Option.isSome(result);
+    if (exists) {
+      users := Trie.replace(
+        users,
+        key(telegramId),
+        Nat32.equal,
+        null,
+      ).0;
+    };
+    return exists;
+  };
+
   private func key(x : TelegramId) : Trie.Key<TelegramId> {
     return { hash = x; key = x };
   };

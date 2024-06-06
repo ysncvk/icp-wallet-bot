@@ -11,31 +11,45 @@ const localLedgerCanisterId = "bnz7o-iuaaa-aaaaa-qaaaa-cai"; // Yerel Ledger can
 
 function App() {
   const [isUser, setIsUser] = useState(false);
-  const [telegramId, setTelegramId] = useState();
+  const [telegramId, setTelegramId] = useState(0);
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
     window.Telegram.WebApp.ready();
     const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-    console.log(telegramUser);
-
-    if (telegramUser) {
-      setTelegramId(telegramUser.id);
-      setUserName(telegramUser.first_name);
-      checkUser(telegramId);
-    }
+    setTelegramId(telegramUser.id);
+    setUserName(telegramUser.first_name);
   }, []);
 
-  const checkUser = async ({ telegramId }) => {
+  useEffect(() => {
+    if (telegramId !== 0) {
+      checkUser(telegramId);
+      console.log(telegramId);
+    }
+  }, [telegramId]);
+
+  const checkUser = async () => {
     try {
-      const result = await icp_wallet_bot_backend.checkUser();
+      const result = await icp_wallet_bot_backend.checkUser(telegramId);
       setIsUser(result);
     } catch (error) {
       console.error("Error checking user:", error);
     }
   };
 
-  return <main>{!isUser ? <CreateWallet /> : <Wallet />}</main>;
+  return (
+    <main>
+      {!isUser ? (
+        <CreateWallet
+          telegramId={telegramId}
+          userName={userName}
+          userStatus={setIsUser}
+        />
+      ) : (
+        <Wallet telegramId={telegramId} />
+      )}
+    </main>
+  );
 }
 
 export default App;

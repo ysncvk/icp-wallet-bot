@@ -32,6 +32,7 @@ export default function CreateWallet({ userName, telegramId, userStatus }) {
     console.log("Private Key:", privateKeyBase64);
 
     const principal = identity.getPrincipal(); // Principal'i alıyoruz
+
     console.log("Principal", principal);
 
     const accountIdentifier = AccountIdentifier.fromPrincipal({ principal });

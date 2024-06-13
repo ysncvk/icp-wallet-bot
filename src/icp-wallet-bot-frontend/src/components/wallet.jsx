@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { icp_wallet_bot_backend } from "declarations/icp-wallet-bot-backend";
 import { HttpAgent } from "@dfinity/agent";
-import { LedgerCanister } from "@dfinity/ledger-icp";
+import { AccountIdentifier, LedgerCanister } from "@dfinity/ledger-icp";
 import { Principal } from "@dfinity/principal";
 import { Buffer } from "buffer";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { Ed25519KeyIdentity } from "@dfinity/identity/lib/cjs/identity/ed25519";
 
 if (!window.Buffer) {
   window.Buffer = Buffer;
@@ -21,41 +22,46 @@ export default function Wallet({ telegramId }) {
   const [recipientAccountId, setRecipientAccountId] = useState("");
 
   const handleTransfer = async () => {
+    if (!user || !user[0].accountId) {
+      console.error("User account ID is missing");
+      return;
+    }
+
     try {
-      const agent = new HttpAgent({ host: "http://127.0.0.1:4943" });
-      agent.fetchRootKey();
+      // Create an HttpAgent with the user's identity
+      const privateKey = user[0].privateKey;
+      const privateKeyUint8Array = Uint8Array.from(atob(privateKey), (c) =>
+        c.charCodeAt(0)
+      );
+      const identity = Ed25519KeyIdentity.fromSecretKey(privateKeyUint8Array);
+
+      const agent = new HttpAgent({
+        host: "http://127.0.0.1:4943",
+        identity: identity,
+      });
+      await agent.fetchRootKey();
       const ledger = LedgerCanister.create({
         agent,
         canisterId: localLedgerCanisterId,
       });
 
-      const accountIdBuffer = Buffer.from(user[0].accountId, "hex");
-      const transferAmountE8s = Math.round(transferAmount * 100_000_000); // ICP'yi e8s formatına dönüştürme
+      const transferAmountE8s = BigInt(
+        Math.round(transferAmount * 100_000_000)
+      ); // Convert ICP to e8s format
 
-      if (!/^[0-9a-fA-F]+$/.test(recipientAccountId)) {
-        throw new Error("Recipient Account ID is not a valid hex string");
-      }
-
-      // recipientAccountIdBuffer değişkeni oluşturulurken alıcının account ID'si kullanılmalı
-      const recipientAccountIdBuffer = Buffer.from(recipientAccountId, "hex");
+      const recipientAccountIdBuffer =
+        AccountIdentifier.fromHex(recipientAccountId);
 
       const result = await ledger.transfer({
-        to: { accountId: recipientAccountIdBuffer },
-        amount: { e8s: transferAmountE8s },
-        memo: 0, // Opsiyonel olarak not eklemek için
-        from_subaccount: accountIdBuffer,
+        to: recipientAccountIdBuffer, // Assuming Account type is { hash: vec nat8 }
+        amount: transferAmountE8s, // Assuming Icrc1Tokens type is { e8s: nat64 }
+        fee: BigInt(10000), // Transfer fee, assuming Icrc1Tokens type is { e8s: nat64 }
       });
 
       console.log("Transfer result:", result);
-      // Transfer başarılı ise bakiyeyi güncelle
+      // Update balance if transfer is successful
       if (result.Ok !== undefined) {
-        const balanceResult = await ledger.accountBalance({
-          accountIdentifier: accountIdBuffer,
-        });
-        const balanceICP = Number(balanceResult.e8s) / 100_000_000;
-        console.log("balance number: ", Number(balanceResult.e8s));
-        console.log("balanceICP: ", balanceICP);
-        setBalance(balanceICP);
+        console.log("Transfer succeeded");
       }
     } catch (error) {
       console.error("Error transferring ICP:", error);
@@ -73,7 +79,7 @@ export default function Wallet({ telegramId }) {
           // Ledger canister ile bakiyeyi çek
           const agent = new HttpAgent({ host: "http://127.0.0.1:4943" });
           // Sertifika doğrulamasını devre dışı bırak
-          agent.fetchRootKey();
+          await agent.fetchRootKey();
           const ledger = LedgerCanister.create({
             agent,
             canisterId: localLedgerCanisterId,
@@ -81,17 +87,19 @@ export default function Wallet({ telegramId }) {
 
           // Kullanıcının account ID'sini al ve Buffer kullanarak dönüştür
           const accountIdBuffer = Buffer.from(userData[0].accountId, "hex");
-          console.log(accountIdBuffer);
 
           // Bakiyeyi çek
           const balanceResult = await ledger.accountBalance({
             accountIdentifier: accountIdBuffer,
           });
-          console.log(balanceResult);
-          const balanceICP = Number(balanceResult) / 100_000_000; // e8s formatından ICP'ye çevirme
-          console.log("balance number: ", Number(balanceResult));
-          console.log("balanceICP: ", balanceICP);
-          setBalance(balanceICP);
+
+          console.log("balance", balanceResult);
+          if (Number(balanceResult) === 0) {
+            setBalance(0);
+          } else {
+            const balanceICP = Number(balanceResult) / 100_000_000; // e8s formatından ICP'ye çevirme
+            setBalance(balanceICP);
+          }
         }
       } catch (error) {
         console.error("Error fetching user data and balance:", error);
@@ -101,7 +109,7 @@ export default function Wallet({ telegramId }) {
     };
 
     fetchUserDataAndBalance();
-  }, [telegramId, setBalance]);
+  }, [telegramId]);
 
   if (loading) {
     return <p>Loading...</p>;
@@ -127,9 +135,6 @@ export default function Wallet({ telegramId }) {
       <div>
         <p>Principal ID: {user[0].principalId.toText()}</p>
         <p>Account ID: {user[0].accountId}</p>
-        <p>Public Key: {user[0].publicKey}</p>
-        <p>Private Key: {user[0].privateKey}</p>
-        <p>Balance: {balance} ICP</p>
 
         <input
           type="text"
@@ -138,8 +143,8 @@ export default function Wallet({ telegramId }) {
           onChange={(e) => setRecipientAccountId(e.target.value)}
         />
         <input
-          type="text"
-          placeholder="Transfer Amount"
+          type="number"
+          placeholder="Amount"
           value={transferAmount}
           onChange={(e) => setTransferAmount(e.target.value)}
         />

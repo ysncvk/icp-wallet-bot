@@ -5,6 +5,8 @@ import Nat32 "mo:base/Nat32";
 import Bool "mo:base/Bool";
 import Option "mo:base/Option";
 
+
+
 actor ICPWallet {
   type TelegramId = Nat32;
   type User = { 
@@ -13,6 +15,7 @@ actor ICPWallet {
     publicKey: Text;
     privateKey: Text;
   };
+
 
   private stable var users : Trie.Trie<TelegramId, User> = Trie.empty();
 
